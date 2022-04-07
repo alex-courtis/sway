@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/edges.h>
 #include "log.h"
+#include "sway/amc.h"
 #include "sway/decoration.h"
 #include "sway/desktop.h"
 #include "sway/desktop/transaction.h"
@@ -148,6 +149,7 @@ static uint32_t configure(struct sway_view *view, double lx, double ly,
 	if (xdg_shell_view == NULL) {
 		return 0;
 	}
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xdg_shell configure", view->surface));
 	return wlr_xdg_toplevel_set_size(view->wlr_xdg_surface, width, height);
 }
 
@@ -282,6 +284,8 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct sway_view *view = &xdg_shell_view->view;
 	struct wlr_xdg_surface *xdg_surface = view->wlr_xdg_surface;
 
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xdg_shell handle_commit START", view->surface));
+
 	struct wlr_box new_geo;
 	wlr_xdg_surface_get_geometry(xdg_surface, &new_geo);
 	bool new_size = new_geo.width != view->geometry.width ||
@@ -310,6 +314,8 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	}
 
 	view_damage_from(view);
+
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xdg_shell handle_commit END", view->surface));
 }
 
 static void handle_set_title(struct wl_listener *listener, void *data) {

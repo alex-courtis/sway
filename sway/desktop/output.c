@@ -18,6 +18,7 @@
 #include <wlr/util/region.h>
 #include "config.h"
 #include "log.h"
+#include "sway/amc.h"
 #include "sway/config.h"
 #include "sway/desktop/transaction.h"
 #include "sway/input/input-manager.h"
@@ -102,6 +103,7 @@ static bool get_surface_box(struct surface_iterator_data *data,
 static void output_for_each_surface_iterator(struct wlr_surface *surface,
 		int sx, int sy, void *_data) {
 	struct surface_iterator_data *data = _data;
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("output output_for_each_surface_iterator START", surface));
 
 	struct wlr_box box;
 	bool intersects = get_surface_box(data, surface, sx, sy, &box);
@@ -111,11 +113,16 @@ static void output_for_each_surface_iterator(struct wlr_surface *surface,
 
 	data->user_iterator(data->output, data->view, surface, &box,
 		data->user_data);
+
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("output output_for_each_surface_iterator END", surface));
 }
 
 void output_surface_for_each_surface(struct sway_output *output,
 		struct wlr_surface *surface, double ox, double oy,
 		sway_surface_iterator_func_t iterator, void *user_data) {
+
+	sway_log(SWAY_INFO, "AMC     %p output output_surface_for_each_surface", surface);
+
 	struct surface_iterator_data data = {
 		.user_iterator = iterator,
 		.user_data = user_data,
@@ -134,6 +141,9 @@ void output_surface_for_each_surface(struct sway_output *output,
 void output_view_for_each_surface(struct sway_output *output,
 		struct sway_view *view, sway_surface_iterator_func_t iterator,
 		void *user_data) {
+
+	sway_log(SWAY_INFO, "AMC     %p output output_view_for_each_surface START", view->surface);
+
 	struct surface_iterator_data data = {
 		.user_iterator = iterator,
 		.user_data = user_data,
@@ -148,6 +158,8 @@ void output_view_for_each_surface(struct sway_output *output,
 	};
 
 	view_for_each_surface(view, output_for_each_surface_iterator, &data);
+
+	sway_log(SWAY_INFO, "AMC     %p output output_view_for_each_surface END", view->surface);
 }
 
 void output_view_for_each_popup_surface(struct sway_output *output,
@@ -275,6 +287,8 @@ static void for_each_surface_container_iterator(struct sway_container *con,
 
 static void output_for_each_surface(struct sway_output *output,
 		sway_surface_iterator_func_t iterator, void *user_data) {
+	sway_log(SWAY_INFO, "AMC     output output_for_each_surface START");
+
 	if (output_has_opaque_overlay_layer_surface(output)) {
 		goto overlay;
 	}
@@ -339,6 +353,7 @@ overlay:
 		iterator, user_data);
 	output_drag_icons_for_each_surface(output, &root->drag_icons,
 		iterator, user_data);
+	sway_log(SWAY_INFO, "AMC     output output_for_each_surface END");
 }
 
 static int scale_length(int length, int offset, float scale) {
@@ -646,6 +661,9 @@ static void damage_surface_iterator(struct sway_output *output,
 	}
 	pixman_region32_translate(&damage, box.x, box.y);
 	wlr_output_damage_add(output->damage, &damage);
+
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("output damage_surface_iterator", surface));
+
 	pixman_region32_fini(&damage);
 
 	if (whole) {
@@ -659,6 +677,7 @@ static void damage_surface_iterator(struct sway_output *output,
 
 void output_damage_surface(struct sway_output *output, double ox, double oy,
 		struct wlr_surface *surface, bool whole) {
+	sway_log(SWAY_INFO, "AMC     %p output output_damage_surface", surface);
 	output_surface_for_each_surface(output, surface, ox, oy,
 		damage_surface_iterator, &whole);
 }
@@ -669,6 +688,7 @@ void output_damage_from_view(struct sway_output *output,
 		return;
 	}
 	bool whole = false;
+	sway_log(SWAY_INFO, "AMC     %p output output_damage_from_view", view->surface);
 	output_view_for_each_surface(output, view, damage_surface_iterator, &whole);
 }
 

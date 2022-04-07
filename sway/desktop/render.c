@@ -16,6 +16,7 @@
 #include <wlr/util/region.h>
 #include "log.h"
 #include "config.h"
+#include "sway/amc.h"
 #include "sway/config.h"
 #include "sway/input/input-manager.h"
 #include "sway/input/seat.h"
@@ -142,6 +143,8 @@ static void render_surface_iterator(struct sway_output *output,
 		return;
 	}
 
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("render render_surface_iterator", surface));
+
 	struct wlr_fbox src_box;
 	wlr_surface_get_buffer_source_box(surface, &src_box);
 
@@ -161,6 +164,14 @@ static void render_surface_iterator(struct sway_output *output,
 		dst_box.height = fmin(dst_box.height, clip_box->height);
 	}
 	scale_box(&dst_box, wlr_output->scale);
+
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("render render_texture", surface));
+	sway_log(SWAY_INFO, "AMC     %p render render_texture tx: %4dx%4d   tr: [ %6g, %6g, %6g ]  [ %6g, %6g, %6g ]  [ %6g, %6g, %6g ]",
+			surface,
+			texture->width, texture->height,
+			matrix[0], matrix[1], matrix[2],
+			matrix[3], matrix[4], matrix[5],
+			matrix[6], matrix[7], matrix[8]);
 
 	render_texture(wlr_output, output_damage, texture,
 		&src_box, &dst_box, matrix, alpha);
@@ -337,6 +348,8 @@ static void render_saved_view(struct sway_view *view,
 					(saved_buf->y - view->container->current.content_y) + view->saved_geometry.y);
 		}
 		scale_box(&dst_box, wlr_output->scale);
+
+		sway_log(SWAY_INFO, "AMC     render render_saved_view");
 
 		render_texture(wlr_output, damage, saved_buf->buffer->texture,
 			&saved_buf->source_box, &dst_box, matrix, alpha);

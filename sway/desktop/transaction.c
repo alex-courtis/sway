@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <wlr/types/wlr_buffer.h>
+#include "sway/amc.h"
 #include "sway/config.h"
 #include "sway/desktop.h"
 #include "sway/desktop/idle_inhibit_v1.h"
@@ -232,6 +233,7 @@ static void apply_workspace_state(struct sway_workspace *ws,
 static void apply_container_state(struct sway_container *container,
 		struct sway_container_state *state) {
 	struct sway_view *view = container->view;
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("transaction apply_container_state", view->surface));
 	// Damage the old location
 	desktop_damage_whole_container(container);
 	if (view && !wl_list_empty(&view->saved_buffers)) {
@@ -383,14 +385,17 @@ static bool should_configure(struct sway_node *node,
 		// truncated point of view) and cause transactions to time out.
 		if ((int)cstate->content_x != (int)istate->content_x ||
 				(int)cstate->content_y != (int)istate->content_y) {
+			sway_log(SWAY_INFO, "%s", sway_surface_geo("transaction should_configure XYES", node->sway_container->view->surface));
 			return true;
 		}
 	}
 #endif
 	if (cstate->content_width == istate->content_width &&
 			cstate->content_height == istate->content_height) {
+		sway_log(SWAY_INFO, "%s", sway_surface_geo("transaction should_configure NO", node->sway_container->view->surface));
 		return false;
 	}
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("transaction should_configure YES", node->sway_container->view->surface));
 	return true;
 }
 
@@ -398,6 +403,7 @@ static void transaction_commit(struct sway_transaction *transaction) {
 	sway_log(SWAY_DEBUG, "Transaction %p committing with %i instructions",
 			transaction, transaction->instructions->length);
 	transaction->num_waiting = 0;
+	sway_log(SWAY_INFO, "AMC     transaction_commit %i", transaction->instructions->length);
 	for (int i = 0; i < transaction->instructions->length; ++i) {
 		struct sway_transaction_instruction *instruction =
 			transaction->instructions->items[i];
@@ -510,6 +516,8 @@ void transaction_notify_view_ready_by_serial(struct sway_view *view,
 
 void transaction_notify_view_ready_by_geometry(struct sway_view *view,
 		double x, double y, int width, int height) {
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("transaction transaction_notify_view_ready_by_geometry", view->surface));
+
 	struct sway_transaction_instruction *instruction =
 		view->container->node.instruction;
 	if (instruction != NULL &&

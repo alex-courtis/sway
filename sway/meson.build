@@ -1,4 +1,5 @@
 sway_sources = files(
+	'amc.c',
 	'commands.c',
 	'config.c',
 	'criteria.c',

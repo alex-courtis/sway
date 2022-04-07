@@ -3,10 +3,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
+#include <wlr/util/amc.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/xwayland.h>
 #include "log.h"
+#include "sway/amc.h"
 #include "sway/desktop.h"
 #include "sway/desktop/transaction.h"
 #include "sway/input/cursor.h"
@@ -189,6 +191,20 @@ static struct sway_xwayland_view *xwayland_view_from_view(
 	return (struct sway_xwayland_view *)view;
 }
 
+static int32_t effective_scale(struct sway_view *view) {
+	int32_t effective_scale = 1;
+
+	if (view && view->container) {
+		struct sway_output *effective_output = NULL;
+		effective_output = container_get_effective_output(view->container);
+		if (effective_output && effective_output->wlr_output) {
+			effective_scale = ceil(effective_output->wlr_output->scale);
+		}
+	}
+
+	return effective_scale;
+}
+
 static const char *get_string_prop(struct sway_view *view, enum sway_view_prop prop) {
 	if (xwayland_view_from_view(view) == NULL) {
 		return NULL;
@@ -237,7 +253,15 @@ static uint32_t configure(struct sway_view *view, double lx, double ly, int widt
 	}
 	struct wlr_xwayland_surface *xsurface = view->wlr_xwayland_surface;
 
-	wlr_xwayland_surface_configure(xsurface, lx, ly, width, height);
+	sway_log(SWAY_INFO, "AMC     %p xwayland configure %5g,%5g %4dx%4d",
+			xsurface->surface,
+			lx, ly,
+			width, height);
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland configure", xsurface->surface));
+
+	wlr_xwayland_surface_configure(xsurface, lx, ly,
+			width * xsurface->surface->pending.scale,
+			height * xsurface->surface->pending.scale);
 
 	// xwayland doesn't give us a serial for the configure
 	return 0;
@@ -396,6 +420,8 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_surface *xsurface = view->wlr_xwayland_surface;
 	struct wlr_surface_state *state = &xsurface->surface->current;
 
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland handle_commit START", view->surface));
+
 	struct wlr_box new_geo;
 	get_geometry(view, &new_geo);
 	bool new_size = new_geo.width != view->geometry.width ||
@@ -416,6 +442,7 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 			view_center_surface(view);
 		}
 		desktop_damage_view(view);
+		sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland handle_commit new size", view->surface));
 	}
 
 	if (view->container->node.instruction) {
@@ -424,6 +451,18 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	}
 
 	view_damage_from(view);
+
+	if (xwayland_view->scaled_buffer) {
+		int32_t scale = effective_scale(view);
+		if (xsurface->surface->current.scale != scale) {
+			xsurface->surface->pending.scale = scale;
+			xsurface->surface->pending.committed = WLR_SURFACE_STATE_SCALE;
+			sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland handle_commit new scale", view->surface));
+			configure(view, view->geometry.x, view->geometry.y, view->geometry.width, view->geometry.height);
+		}
+	}
+
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland handle_commit END", view->surface));
 }
 
 static void handle_destroy(struct wl_listener *listener, void *data) {
@@ -521,6 +560,7 @@ static void handle_request_configure(struct wl_listener *listener, void *data) {
 			ev->width, ev->height);
 		return;
 	}
+	sway_log(SWAY_INFO, "%s", sway_surface_geo("xwayland handle_request_configure", view->surface));
 	if (container_is_floating(view->container)) {
 		// Respect minimum and maximum sizes
 		view->natural_width = ev->width;
@@ -691,6 +731,7 @@ struct sway_xwayland_view *create_xwayland_view(struct wlr_xwayland_surface *xsu
 	if (!sway_assert(xwayland_view, "Failed to allocate view")) {
 		return NULL;
 	}
+	xwayland_view->scaled_buffer = true;
 
 	view_init(&xwayland_view->view, SWAY_VIEW_XWAYLAND, &view_impl);
 	xwayland_view->view.wlr_xwayland_surface = xsurface;

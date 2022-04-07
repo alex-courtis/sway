@@ -13,6 +13,7 @@
 #include "linux-dmabuf-unstable-v1-protocol.h"
 #include "cairo_util.h"
 #include "pango.h"
+#include "sway/amc.h"
 #include "sway/config.h"
 #include "sway/desktop.h"
 #include "sway/desktop/transaction.h"
@@ -1361,6 +1362,8 @@ void container_discover_outputs(struct sway_container *con) {
 				}
 			}
 			list_add(con->outputs, output);
+			sway_log(SWAY_INFO, "%s", sway_surface_geo("container container_discover_outputs ADD", con->view->surface));
+
 		} else if (!intersects && index != -1) {
 			// Send leave
 			sway_log(SWAY_DEBUG, "Container %p left output %p", con, output);
@@ -1373,6 +1376,7 @@ void container_discover_outputs(struct sway_container *con) {
 				}
 			}
 			list_del(con->outputs, index);
+			sway_log(SWAY_INFO, "%s", sway_surface_geo("container container_discover_outputs DEL", con->view->surface));
 		}
 	}
 	struct sway_output *new_output = container_get_effective_output(con);
